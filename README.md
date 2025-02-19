@@ -6,4 +6,4 @@ Bibliothèques pour les sandboxes de PLaTon :
 
 ## Accès aux fichiers
 
-Les fichiers de ce repository sont accessibles depuis la sandbox dans le repertoire : `/utils/libs/platon/NextLib.py`
+Les fichiers de ce repository sont accessibles depuis la sandbox dans le repertoire : `/utils/libs/platon/nom_du_fichier`
