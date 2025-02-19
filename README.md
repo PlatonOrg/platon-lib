@@ -1,5 +1,9 @@
-# platon-lib
+# PlatonLib
 
-Libs for PLaTon sandboxes
+Bibliothèques pour les sandboxes de PLaTon :
 
-Les fichiers de ce repository sont accessibles depuis la sandbox dans le repertoire: <emplacement à louer>
+- **NextLib** : Fonctions facilitant la programmation de la navigation intelligente pour les activités
+
+## Accès aux fichiers
+
+Les fichiers de ce repository sont accessibles depuis la sandbox dans le repertoire : `/utils/libs/platon/NextLib.py`
