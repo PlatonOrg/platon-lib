@@ -1,5 +1,10 @@
 import random
-from typing import Optional, Union, Iterable, Callable
+from typing import Optional, Iterable, Callable, Any
+
+
+################################################################################
+# Exceptions
+################################################################################
 
 
 class InvalidGroupError(Exception):
@@ -10,6 +15,11 @@ class InvalidGroupError(Exception):
 class InvalidExerciseError(Exception):
     """Exception levée lorsqu'un numéro d'exercice invalide est demandé."""
     pass
+
+
+################################################################################
+# Fonctions pour la gestion de l'activité
+################################################################################
 
 
 def playExercise(exerciseId: str) -> None:
@@ -427,7 +437,9 @@ def isAllExercisesFromGroupPlayed(groupNb: int = getCurrentGroupNumber()) -> boo
     return all(isPlayed(exercise["id"]) for exercise in exercises)
 
 
-# Grade
+################################################################################
+# Fonctions pour la gestion des notes
+################################################################################
 
 
 def setActivityGrade(grade_aggregation_strategy: Callable[[], int]) -> None:
@@ -474,3 +486,42 @@ def best_grade_strategy() -> int:
     ]
     played_grades = [grade for grade in played_grades if grade is not None]
     return max(played_grades) if played_grades else 0
+
+
+################################################################################
+# Fonction de gestion de la mémoire
+################################################################################
+
+
+def load(variableName: str) -> Optional[Any]:
+    """
+    Charge une variable stockée en mémoire.
+
+    Args:
+        variableName (str): Le nom de la variable à charger.
+
+    Returns:
+        Optional[Any]: La valeur de la variable chargée, ou None si la variable n'existe pas.
+    """
+    return savedVariables.get(variableName)
+
+
+def save(variableName: str, value: Any) -> None:
+    """
+    Stocke une variable en mémoire.
+
+    Args:
+        variableName (str): Le nom de la variable à stocker.
+        value (Any): La valeur de la variable à stocker.
+    """
+    savedVariables[variableName] = value
+
+
+def loadAll() -> dict:
+    """
+    Charge toutes les variables stockées en mémoire.
+
+    Returns:
+        dict: Un dictionnaire contenant toutes les variables stockées.
+    """
+    return savedVariables
