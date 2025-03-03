@@ -17,6 +17,11 @@ class InvalidExerciseError(Exception):
     pass
 
 
+class ExerciseVariablesNotEnabledError(Exception):
+    """Exception levée lorsque l'accès aux variables des exercices est tenté sans que cette option soit activée."""
+    pass
+
+
 ################################################################################
 # Fonctions pour la gestion de l'activité
 ################################################################################
@@ -525,3 +530,55 @@ def loadAll() -> dict:
         dict: Un dictionnaire contenant toutes les variables stockées.
     """
     return savedVariables
+
+
+################################################################################
+# Fonctions pour accèder aux variables des exercices
+# ATTENTION: Cette fonctionnalité doit être activée dans l'activité
+################################################################################
+
+
+def CheckExerciseVariables() -> None:
+    """
+    Vérifie si l'accès aux variables des exercices est activé.
+
+    Raises:
+        ExerciseVariablesNotEnabledError: Si l'accès aux variables des exercices n'est pas activé.
+    """
+    if not exercisesVariables:
+        raise ExerciseVariablesNotEnabledError("L'accès aux variables des exercices n'est pas activé.")
+
+
+def getExerciseVariable(exerciseId: str, variableName: str) -> Optional[Any]:
+    """
+    Récupère la valeur d'une variable spécifique pour un exercice donné.
+
+    Args:
+        exerciseId (str): L'ID de l'exercice.
+        variableName (str): Le nom de la variable à récupérer.
+
+    Returns:
+        Optional[Any]: La valeur de la variable, ou None si la variable n'existe pas.
+
+    Raises:
+        ExerciseVariablesNotEnabledError: Si l'accès aux variables des exercices n'est pas activé.
+    """
+    CheckExerciseVariables()
+    return exercisesVariables[exerciseId].get(variableName)
+
+
+def getExerciseAllVariables(exerciseId: str) -> dict:
+    """
+    Récupère toutes les variables pour un exercice donné.
+
+    Args:
+        exerciseId (str): L'ID de l'exercice.
+
+    Returns:
+        dict: Un dictionnaire contenant toutes les variables de l'exercice.
+
+    Raises:
+        ExerciseVariablesNotEnabledError: Si l'accès aux variables des exercices n'est pas activé.
+    """
+    CheckExerciseVariables()
+    return exercisesVariables[exerciseId]
