@@ -1,5 +1,7 @@
 import random
 from typing import Optional, Iterable, Callable, Any
+import json
+import hashlib
 
 
 ################################################################################
@@ -27,18 +29,22 @@ class ExerciseVariablesNotEnabledError(Exception):
 ################################################################################
 
 
-def playExercise(exerciseId: str) -> None:
+def playExercise(exerciseId: str, params: Optional[dict] = None) -> None:
     """
     Démarre l'exécution d'un exercice en fonction de son ID.
     
     Args:
         exerciseId (str): L'ID de l'exercice à jouer.
+        params (Optional[dict]): Paramètres supplémentaires pour l'exercice. Default: None.
     
     Raises:
         StopExec: Exception levée pour arrêter la prochaine computation.
     """
     global nextExerciseId
+    global nextParams
     nextExerciseId = exerciseId
+    if params:
+        nextParams = params
     raise StopExec()
 
 
@@ -582,3 +588,45 @@ def getExerciseAllVariables(exerciseId: str) -> dict:
     """
     CheckExerciseVariables()
     return exercisesVariables[exerciseId]
+
+
+################################################################################
+# Fonctions pour la génération de nouveaux exercices
+################################################################################
+
+
+def hashParams(params: dict, exerciseId: str) -> str:
+    """
+    Génère un hash SHA256 pour les paramètres donnés, incluant un ID d'exercice.
+
+    Args:
+        params (dict): Un dictionnaire contenant les paramètres à hasher.
+        exerciseId (str): L'ID de l'exercice à inclure dans les paramètres.
+
+    Returns:
+        str: Le hash SHA256 des paramètres sérialisés en JSON, incluant l'ID de l'exercice.
+    """
+    params_with_id = {**params, "idExo": exerciseId}
+    params_str = json.dumps(params_with_id, sort_keys=True).encode('utf-8')
+    return hashlib.sha256(params_str).hexdigest()
+
+
+def generateAndPlayExercise(exerciseId: str, params: dict = {}) -> Optional[str]:
+    """
+    Génère un exercice avec des paramètres donnés et le lance si cet exercice n'a pas déjà été généré.
+    
+    Args:
+        exerciseId (str): L'ID de l'exercice à générer et à jouer.
+        params (dict, optional): Paramètres supplémentaires pour l'exercice. Par défaut, un dictionnaire vide.
+    
+    Returns:
+        Optional[str]: L'ID de l'exercice généré et joué si l'exercice vient d'être généré, None sinon.
+    """
+    global generatedExerciseHash
+    exercice_hash = hashParams(params, exerciseId)
+    if exercice_hash not in generatedExercises:
+        generatedExerciseHash = exercice_hash
+        playExercise(exerciseId, params)
+    if getLastPlayedExerciseId() == generatedExercises[exercice_hash]:
+        return generatedExercises[exercice_hash]
+    return None
