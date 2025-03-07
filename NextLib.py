@@ -25,6 +25,56 @@ class ExerciseVariablesNotEnabledError(Exception):
 
 
 ################################################################################
+# Fonctions de vérification
+################################################################################
+
+
+def checkGroupNb(groupNb: int) -> None:
+    """
+    Vérifie si le numéro de groupe spécifié est valide.
+
+    Args:
+        groupNb (int): Le numéro de groupe à vérifier.
+
+    Raises:
+        InvalidGroupError: Si le numéro de groupe spécifié n'est pas valide.
+    """
+    if str(groupNb) not in exerciseGroups:
+        raise InvalidGroupError(f"Le numéro de groupe {groupNb} est invalide.")
+    
+
+def checkExerciseNb(groupNb: int, exerciseNb: int) -> None:
+    """
+    Vérifie si le numéro d'exercice spécifié est valide.
+
+    Args:
+        groupNb (int): Le numéro de groupe (index) de l'exercice.
+        exerciseNb (int): Le numéro d'exercice (index) à vérifier.
+
+    Raises:
+        InvalidGroupError: Si le numéro de groupe spécifié n'est pas valide.
+        InvalidExerciseError: Si le numéro d'exercice spécifié n'est pas valide.
+    """
+    checkGroupNb(groupNb)
+
+    exercises = exerciseGroups[str(groupNb)]["exercises"]
+    
+    if exerciseNb < 0 or exerciseNb >= len(exercises):
+        raise InvalidExerciseError(f"Le numéro d'exercice {exerciseNb} est invalide.")
+    
+
+def CheckExerciseVariables() -> None:
+    """
+    Vérifie si l'accès aux variables des exercices est activé.
+
+    Raises:
+        ExerciseVariablesNotEnabledError: Si l'accès aux variables des exercices n'est pas activé.
+    """
+    if not exercisesVariables:
+        raise ExerciseVariablesNotEnabledError("L'accès aux variables des exercices n'est pas activé.")
+
+
+################################################################################
 # Fonctions pour la gestion de l'activité
 ################################################################################
 
@@ -75,13 +125,8 @@ def getExerciseId(groupNb: int = 0, exerciseNb: int = 0) -> str:
         InvalidGroupError: Si le numéro de groupe est invalide.
         InvalidExerciseError: Si le numéro d'exercice est invalide.
     """
-    if groupNb < 0 or groupNb >= getGroupsCount():
-        raise InvalidGroupError(f"Le numéro de groupe {groupNb} est invalide.")
-
-    exercises = exerciseGroups[str(groupNb)]["exercises"]
-    
-    if exerciseNb < 0 or exerciseNb >= len(exercises):
-        raise InvalidExerciseError(f"Le numéro d'exercice {exerciseNb} est invalide.")
+    checkGroupNb(groupNb)
+    checkExerciseNb(groupNb, exerciseNb)
 
     return exercises[exerciseNb]["id"]
 
@@ -104,8 +149,10 @@ def getGroupsCount() -> int:
     Récupère le nombre total de groupes d'exercices disponibles.
 
     Returns:
-        int: Le nombre de groupes.
+        int: Le nombre de groupes. Si le groupe "Exercices générés" est présent, il est exclu du compte.
     """
+    if "-1" in exerciseGroups:
+        return len(exerciseGroups) - 1
     return len(exerciseGroups)
 
 
@@ -122,8 +169,7 @@ def getGroupExercisesCount(groupNb: int) -> int:
     Raises:
         InvalidGroupError: Si le numéro de groupe spécifié n'existe pas.
     """
-    if groupNb < 0 or groupNb >= getGroupsCount():
-        raise InvalidGroupError(f"Le numéro de groupe {groupNb} est invalide.")
+    checkGroupNb(groupNb)
 
     return len(exerciseGroups[str(groupNb)]["exercises"])
 
@@ -176,8 +222,7 @@ def getRandomGroupExerciseNb(groupNb: int) -> int:
     Raises:
         InvalidGroupError: Si le numéro de groupe spécifié n'existe pas.
     """
-    if groupNb < 0 or groupNb >= getGroupsCount():
-        raise InvalidGroupError(f"Le numéro de groupe {groupNb} est invalide.")
+    checkGroupNb(groupNb)
 
     return random.randint(0, getGroupExercisesCount(groupNb) - 1)
 
@@ -207,8 +252,7 @@ def getRandomExerciseFromGroup(groupNb: int) -> str:
     Raises:
         InvalidGroupError: Si le numéro de groupe spécifié n'existe pas.
     """
-    if groupNb < 0 or groupNb >= getGroupsCount():
-        raise InvalidGroupError(f"Le numéro de groupe {groupNb} est invalide.")
+    checkGroupNb(groupNb)
     
     return getExerciseId(groupNb, getRandomGroupExerciseNb(groupNb))
 
@@ -226,6 +270,17 @@ def getRandomUnplayedExerciseId() -> Optional[str]:
         return None
     
     return random.choice(unplayed_exercises)
+
+
+def playCurrent() -> None:
+    """
+    Joue l'exercice actuel, s'il existe.
+
+    Si aucun exercice n'est en cours, aucune action n'est effectuée.
+    """
+    current = getLastPlayedExerciseId()
+    if current:
+        playExercise(current)
 
 
 def playCurrentIfUnplayed() -> None:
@@ -317,8 +372,7 @@ def playAnyFromGroup(groupNb: int) -> Optional[None]:
     Raises:
         InvalidGroupError: Si le numéro de groupe spécifié n'existe pas.
     """
-    if groupNb < 0 or groupNb >= getGroupsCount():
-        raise InvalidGroupError(f"Le numéro de groupe {groupNb} est invalide.")
+    checkGroupNb(groupNb)
 
     exercises = exerciseGroups[str(groupNb)]["exercises"]
     
@@ -347,8 +401,7 @@ def playAllFromGroup(groupNb: int, randomOrder: bool = False) -> Optional[None]:
     Raises:
         InvalidGroupError: Si le numéro de groupe spécifié n'existe pas.
     """
-    if groupNb < 0 or groupNb >= getGroupsCount():
-        raise InvalidGroupError(f"Le numéro de groupe {groupNb} est invalide.")
+    checkGroupNb(groupNb)
 
     exercises = exerciseGroups[str(groupNb)]["exercises"]
     
@@ -441,11 +494,52 @@ def isAllExercisesFromGroupPlayed(groupNb: int = getCurrentGroupNumber()) -> boo
     Raises:
         InvalidGroupError: Si le numéro de groupe spécifié n'existe pas.
     """
-    if groupNb < 0 or groupNb >= getGroupsCount():
-        raise InvalidGroupError(f"Le numéro de groupe {groupNb} est invalide.")
+    checkGroupNb(groupNb)
     
     exercises = exerciseGroups[str(groupNb)]["exercises"]
     return all(isPlayed(exercise["id"]) for exercise in exercises)
+
+
+def playIfUnplayed(exerciseId: str, params: Optional[dict] = None) -> None:
+    """
+    Joue l'exercice spécifié s'il n'a pas encore été tenté.
+
+    Args:
+        exerciseId (str): L'ID de l'exercice à jouer.
+        params (Optional[dict]): Paramètres supplémentaires pour l'exercice. Default: None.
+    """
+    if not isPlayed(exerciseId):
+        playExercise(exerciseId, params)
+
+
+def isOneExercisePlayed() -> bool:
+    """
+    Vérifie si au moins un exercice a déjà été joué.
+
+    Returns:
+        bool: True si au moins un exercice a été joué, False sinon.
+    """
+    return any(meta["attempts"] > 0 for meta in exercisesMeta.values())
+
+
+def isOneExerciseFromGroupPlayed(groupNb: int) -> bool:
+    """
+    Vérifie si au moins un exercice du groupe spécifié a déjà été joué.
+
+    Args:
+        groupNb (int): Le numéro du groupe (index) à vérifier.
+
+    Returns:
+        bool: True si au moins un exercice du groupe a été joué, False sinon.
+    
+    Raises:
+        InvalidGroupError: Si le numéro de groupe spécifié n'existe pas.
+    """
+    checkGroupNb(groupNb)
+
+    exercises = exerciseGroups[str(groupNb)]["exercises"]
+    return any(isPlayed(exercise["id"]) for exercise in exercises)
+
 
 
 ################################################################################
@@ -504,7 +598,7 @@ def best_grade_strategy() -> int:
 ################################################################################
 
 
-def load(variableName: str) -> Optional[Any]:
+def load(variableName: str, default: Any = None) -> Optional[Any]:
     """
     Charge une variable stockée en mémoire.
 
@@ -514,7 +608,7 @@ def load(variableName: str) -> Optional[Any]:
     Returns:
         Optional[Any]: La valeur de la variable chargée, ou None si la variable n'existe pas.
     """
-    return savedVariables.get(variableName)
+    return savedVariables.get(variableName, default)
 
 
 def save(variableName: str, value: Any) -> None:
@@ -542,17 +636,6 @@ def loadAll() -> dict:
 # Fonctions pour accèder aux variables des exercices
 # ATTENTION: Cette fonctionnalité doit être activée dans l'activité
 ################################################################################
-
-
-def CheckExerciseVariables() -> None:
-    """
-    Vérifie si l'accès aux variables des exercices est activé.
-
-    Raises:
-        ExerciseVariablesNotEnabledError: Si l'accès aux variables des exercices n'est pas activé.
-    """
-    if not exercisesVariables:
-        raise ExerciseVariablesNotEnabledError("L'accès aux variables des exercices n'est pas activé.")
 
 
 def getExerciseVariable(exerciseId: str, variableName: str) -> Optional[Any]:
