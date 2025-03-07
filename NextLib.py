@@ -128,6 +128,8 @@ def getExerciseId(groupNb: int = 0, exerciseNb: int = 0) -> str:
     checkGroupNb(groupNb)
     checkExerciseNb(groupNb, exerciseNb)
 
+    exercises = exerciseGroups[str(groupNb)]["exercises"]
+
     return exercises[exerciseNb]["id"]
 
 
