@@ -682,18 +682,18 @@ def getExerciseAllVariables(exerciseId: str) -> dict:
 
 def hashParams(params: dict, exerciseId: str) -> str:
     """
-    Génère un hash SHA256 pour les paramètres donnés, incluant un ID d'exercice.
+    Génère un hash MD5 pour les paramètres donnés, incluant un ID d'exercice.
 
     Args:
         params (dict): Un dictionnaire contenant les paramètres à hasher.
         exerciseId (str): L'ID de l'exercice à inclure dans les paramètres.
 
     Returns:
-        str: Le hash SHA256 des paramètres sérialisés en JSON, incluant l'ID de l'exercice.
+        str: Le hash MD5 des paramètres sérialisés en JSON, incluant l'ID de l'exercice.
     """
     params_with_id = {**params, "idExo": exerciseId}
     params_str = json.dumps(params_with_id, sort_keys=True).encode('utf-8')
-    return hashlib.sha256(params_str).hexdigest()
+    return hashlib.md5(params_str).hexdigest()
 
 
 def generateAndPlayExercise(exerciseId: str, params: dict = {}) -> Optional[str]:
