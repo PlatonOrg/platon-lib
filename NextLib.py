@@ -81,14 +81,14 @@ def CheckExerciseVariables() -> None:
 
 def playExercise(exerciseId: str, params: Optional[dict] = None) -> None:
     """
-    Démarre l'exécution d'un exercice en fonction de son ID.
+    Démarre l'exécution d'un exercice en fonction de son ID et stoppe l'exécution du next.
     
     Args:
         exerciseId (str): L'ID de l'exercice à jouer.
         params (Optional[dict]): Paramètres supplémentaires pour l'exercice. Default: None.
     
     Raises:
-        StopExec: Exception levée pour arrêter la prochaine computation.
+        StopExec: Exception levée pour arrêter l'exécution du next.
     """
     global nextExerciseId
     global nextParams
@@ -100,10 +100,10 @@ def playExercise(exerciseId: str, params: Optional[dict] = None) -> None:
 
 def stopActivity() -> None:
     """
-    Termine l'activité en cours.
+    Termine l'activité en cours et stoppe l'exécution du next.
     
     Raises:
-        StopExec: Exception levée pour arrêter la prochaine computation.
+        StopExec: Exception levée pour arrêter l'exécution du next.
     """
     navigation["terminated"] = True
     nextExerciseId = ""
@@ -176,7 +176,7 @@ def getGroupExercisesCount(groupNb: int) -> int:
     return len(exerciseGroups[str(groupNb)]["exercises"])
 
 
-def getLastPlayedExerciseId() -> Optional[str]:
+def getPreviousExerciseId() -> Optional[str]:
     """
     Récupère l'ID du dernier exercice joué.
 
@@ -274,26 +274,26 @@ def getRandomUnplayedExerciseId() -> Optional[str]:
     return random.choice(unplayed_exercises)
 
 
-def playCurrent() -> None:
+def playPrevious() -> None:
     """
-    Joue l'exercice actuel, s'il existe.
+    Joue le dernier exercice lancé, s'il existe.
 
-    Si aucun exercice n'est en cours, aucune action n'est effectuée.
+    Si aucun exercice n'a été lancé, aucune action n'est effectuée.
     """
-    current = getLastPlayedExerciseId()
-    if current:
-        playExercise(current)
+    previousId = getPreviousExerciseId()
+    if previousId:
+        playExercise(previousId)
 
 
-def playCurrentIfUnplayed() -> None:
+def playPreviousIfUnplayed() -> None:
     """
-    Joue l'exercice actuel s'il n'a pas encore été tenté.
+    Joue l'exercice précédent s'il n'a pas encore été tenté.
     
-    Si l'exercice actuel a déjà été tenté, aucune action n'est effectuée.
+    Si l'exercice précédent a déjà été tenté, aucune action n'est effectuée.
     """
-    current = getLastPlayedExerciseId()
-    if current and getExerciseAttempts(current) == 0:
-        playExercise(current)
+    previousId = getPreviousExerciseId()
+    if previousId and getExerciseAttempts(previousId) == 0:
+        playExercise(previousId)
 
 
 def getExerciseGrades(exerciseId: str) -> Iterable[int]:
@@ -337,12 +337,12 @@ def getExerciseBestGrade(exerciseId: str) -> Optional[int]:
     return max(grades) if grades else None
 
 
-def getCurrentGrade() -> Optional[int]:
+def getPreviousGrade() -> Optional[int]:
     """
-    Récupère la note actuelle de l'exercice en cours dans la navigation.
+    Récupère la note du dernier exercice lancé.
 
     Returns:
-        Optional[int]: La note de l'exercice actuellement joué, ou None s'il n'y a pas de note.
+        Optional[int]: La note du dernier exercice joué, ou None s'il n'y a pas de note.
     """
     return navigation.get("current", {}).get("grade")
 
@@ -436,8 +436,8 @@ def playFirstUnplayedExercise() -> None:
 
 def playNextUnplayedExercise(loop: bool = False) -> None:
     """
-    Joue le prochain exercice non joué après l'exercice actuellement en cours. 
-    Si aucun exercice n'est en cours ou si tous les exercices suivants ont déjà 
+    Joue le prochain exercice non joué après l'exercice précédent. 
+    Si aucun exercice n'a été lancé ou si tous les exercices suivants ont déjà 
     été joués, elle parcourt la liste depuis le début pour trouver le premier exercice non joué.
 
     Raises:
@@ -464,31 +464,31 @@ def playNextUnplayedExercise(loop: bool = False) -> None:
                     playExercise(exercise["id"])
 
 
-def getCurrentGroupNumber() -> Optional[int]:
+def getPreviousGroupNumber() -> Optional[int]:
     """
-    Récupère le numéro du groupe de l'exercice actuellement en cours, s'il existe.
+    Récupère le numéro du groupe du dernier exercice lancé, s'il existe.
 
     Returns:
-        Optional[int]: Le numéro du groupe de l'exercice actuel, ou None si aucun exercice
+        Optional[int]: Le numéro du groupe du dernier exercice lancé, ou None si aucun exercice
                        n'est en cours.
     """
-    current = navigation.get("current")
-    if not current:
+    previous = navigation.get("current")
+    if not previous:
         return None
 
     for groupNb, group in exerciseGroups.items():
-        if any(ex["id"] == current["id"] for ex in group["exercises"]):
+        if any(ex["id"] == previous["id"] for ex in group["exercises"]):
             return int(groupNb)
 
     return None
 
 
-def isAllExercisesFromGroupPlayed(groupNb: int = getCurrentGroupNumber()) -> bool:
+def isAllExercisesFromGroupPlayed(groupNb: int = getPreviousGroupNumber()) -> bool:
     """
     Vérifie si tous les exercices d'un groupe spécifique ont été joués.
 
     Args:
-        groupNb (int): Le numéro du groupe (index) à vérifier. Default : current group
+        groupNb (int): Le numéro du groupe (index) à vérifier. Default : previous group
 
     Returns:
         bool: True si tous les exercices du groupe spécifié ont été joués, False sinon.
@@ -712,6 +712,6 @@ def generateAndPlayExercise(exerciseId: str, params: dict = {}) -> Optional[str]
     if exercice_hash not in generatedExercises:
         generatedExerciseHash = exercice_hash
         playExercise(exerciseId, params)
-    if getLastPlayedExerciseId() == generatedExercises[exercice_hash]:
+    if getPreviousExerciseId() == generatedExercises[exercice_hash]:
         return generatedExercises[exercice_hash]
     return None
