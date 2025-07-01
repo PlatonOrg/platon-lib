@@ -624,6 +624,22 @@ def save(variableName: str, value: Any) -> None:
     savedVariables[variableName] = value
 
 
+def build(variableName: str, value: Any) -> Any:
+    """
+    Construit la variable et la renvoie.
+
+    Args:
+        variableName (str): Le nom de la variable à stocker.
+        value (Any): La valeur de la variable à stocker.
+        
+    Returns:
+        Any: La valeur de la variable.
+    """
+    if variableName not in savedVariables:
+        savedVariables[variableName] = value
+    return savedVariables.get(variableName)
+    
+
 def loadAll() -> dict:
     """
     Charge toutes les variables stockées en mémoire.
