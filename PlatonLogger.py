@@ -18,6 +18,7 @@ Usage dans le runner:
 """
 
 from typing import List, Any
+from datetime import datetime, timezone
 import threading
 
 # Liste thread-safe pour stocker les logs
@@ -42,6 +43,23 @@ def platon_log(*args: Any, **kwargs: Any) -> None:
         >>> platon_log("Liste:", [1, 2, 3])
     """
     message = " ".join(map(str, args))
+    with _lock:
+        _logs.append(message)
+
+
+
+def platon_log_exception(exception: Exception) -> None:
+    """
+    Loggue une exception vers la console Platon.
+
+    L'exception est convertie en message lisible et stockée
+    sans stacktrace brute.
+
+    Args:
+        exception (Exception): L'exception à logger.
+    """
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    message = f"[{timestamp}] {type(exception).__name__}: {exception}"
     with _lock:
         _logs.append(message)
 
