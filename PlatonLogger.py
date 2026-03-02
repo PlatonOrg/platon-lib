@@ -20,6 +20,7 @@ Usage dans le runner:
 from typing import List, Any
 from datetime import datetime, timezone
 import threading
+import traceback
 
 # Liste thread-safe pour stocker les logs
 _logs: List[str] = []
@@ -59,7 +60,27 @@ def platon_log_exception(exception: Exception) -> None:
         exception (Exception): L'exception à logger.
     """
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-    message = f"[{timestamp}] {type(exception).__name__}: {exception}"
+
+    # The script is wrapped with 2 extra lines by with_try_clause ("try:\n    ...\n") (runner.py),
+    # so every line number from <string> must be offset by -2.
+    _WRAPPER_OFFSET = 2
+
+    location = ""
+    if isinstance(exception, SyntaxError):
+        if exception.lineno is not None:
+            location = f" (ligne {exception.lineno - _WRAPPER_OFFSET})"
+    else:
+        tb = exception.__traceback__
+        if tb is not None:
+            frames = traceback.extract_tb(tb)
+            script_frames = [f for f in frames if f.filename == "<string>"]
+            if script_frames:
+                last = script_frames[-1]
+                location = f" (ligne {last.lineno - _WRAPPER_OFFSET})"
+            elif frames:
+                location = f" (ligne {frames[-1].lineno})"
+
+    message = f"[{timestamp}] {type(exception).__name__}{location}: {exception}"
     with _lock:
         _logs.append(message)
 
