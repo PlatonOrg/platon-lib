@@ -66,28 +66,28 @@ _WRAPPER_LINE_OFFSET: int = 2
 # Helpers privés
 # ---------------------------------------------------------------------------
 
-def _coerce_log_type(log_type: Union[str, LogType]) -> LogType:
+def _coerce_level(level: Union[str, LogType]) -> LogType:
     """
     Accepte indifféremment une string ou un LogType.
     Gère les alias courants (ex. "warning" → LogType.WARNING).
     Lève ValueError si la valeur est inconnue.
     """
-    if isinstance(log_type, LogType):
-        return log_type
+    if isinstance(level, LogType):
+        return level
 
     _ALIASES: Dict[str, str] = {"warning": "warn"}
 
-    normalized = _ALIASES.get(log_type.lower(), log_type.lower())
+    normalized = _ALIASES.get(level.lower(), level.lower())
     try:
         return LogType(normalized)
     except ValueError:
         valid = ", ".join(f'"{t.value}"' for t in LogType)
-        raise ValueError(f"log_type invalide : '{log_type}'. Valeurs acceptées : {valid}")
+        raise ValueError(f"level invalide : '{level}'. Valeurs acceptées : {valid}")
 
 
-def _make_entry(log_type: LogType, message: str) -> LogEntry:
+def _make_entry(level: LogType, message: str) -> LogEntry:
     """Construit un dictionnaire de log normalisé."""
-    return {"type": log_type.value, "message": message}
+    return {"type": level.value, "message": message}
 
 
 def _resolve_script_line(exception: Exception) -> str:
@@ -123,7 +123,7 @@ def _resolve_script_line(exception: Exception) -> str:
 # API publique
 # ---------------------------------------------------------------------------
 
-def platon_log(*args: Any, log_type: Union[str, LogType] = LogType.INFO) -> None:
+def platon_log(*args: Any, level: Union[str, LogType] = LogType.INFO) -> None:
     """
     Enregistre un message dans la console Platon.
 
@@ -132,20 +132,20 @@ def platon_log(*args: Any, log_type: Union[str, LogType] = LogType.INFO) -> None
 
     Args:
         *args:      Arguments à logger (convertis en str et joints par des espaces).
-        log_type:   Type du message. Accepte une valeur LogType ou une string
+        level:   Type du message. Accepte une valeur LogType ou une string
                     équivalente ("info", "warning", "error", "debug").
                     Défaut : LogType.INFO.
 
     Examples:
         >>> platon_log("Hello World")
         >>> platon_log("x =", 42)
-        >>> platon_log("Attention !", log_type=LogType.WARNING)
-        >>> platon_log("Attention !", log_type="warning")   # équivalent
-        >>> platon_log("Erreur custom", log_type=LogType.ERROR)
-        >>> platon_log("Erreur custom", log_type="error")   # équivalent
+        >>> platon_log("Attention !", level=LogType.WARNING)
+        >>> platon_log("Attention !", level="warning")   # équivalent
+        >>> platon_log("Erreur custom", level=LogType.ERROR)
+        >>> platon_log("Erreur custom", level="error")   # équivalent
     """
     message = " ".join(map(str, args))
-    entry = _make_entry(_coerce_log_type(log_type), message)
+    entry = _make_entry(_coerce_level(level), message)
     with _lock:
         _logs.append(entry)
 
@@ -182,7 +182,7 @@ def get_logs() -> List[LogEntry]:
 
     Example:
         >>> platon_log("Message 1")
-        >>> platon_log("Attention", log_type=LogType.WARNING)
+        >>> platon_log("Attention", level=LogType.WARNING)
         >>> get_logs()
         [{"type": "info", "message": "Message 1"}, {"type": "warning", "message": "Attention"}]
     """
