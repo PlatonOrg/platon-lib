@@ -4,110 +4,195 @@
 Module partagé pour le logging Platon.
 
 Ce module permet d'utiliser platon_log depuis n'importe quelle librairie interne.
-Les logs sont stockés en mémoire et récupérés par le runner à la fin de l'exécution.
+Les logs sont stockés en mémoire sous forme de dictionnaires typés et récupérés
+par le runner à la fin de l'exécution.
+
+Structure d'un log:
+    {"type": LogType, "message": str}
 
 Usage dans vos librairies:
-    from platon_logger import platon_log
+    from PlatonLogger import platon_log, LogType
     platon_log("Message de debug")
-    platon_log("Valeur:", ma_variable)
+    platon_log("Attention", log_type=LogType.WARNING)
+    platon_log("Erreur custom", log_type=LogType.ERROR)
 
 Usage dans le runner:
-    from platon_logger import platon_log, get_logs, clear_logs
+    from PlatonLogger import platon_log, get_logs, clear_logs
     # ... exécution du script ...
     variables['platon_logs'] = get_logs()
 """
 
-from typing import List, Any
+from typing import List, Any, Dict, Union
 from datetime import datetime, timezone
+from enum import Enum
 import threading
 import traceback
 
-# Liste thread-safe pour stocker les logs
-_logs: List[str] = []
+
+# ---------------------------------------------------------------------------
+# Types
+# ---------------------------------------------------------------------------
+
+class LogType(str, Enum):
+    """
+    Type d'un message de log Platon.
+
+    Les valeurs string sont alignées sur les conventions JavaScript/frontend
+    (console.warn, winston, pino…) pour une sérialisation JSON cohérente.
+    Les noms des membres suivent la convention Python (logging.WARNING).
+    """
+    DEBUG   = 'debug'
+    INFO    = 'info'
+    WARNING = 'warn' 
+    ERROR   = 'error'
+
+
+
+LogEntry = Dict[str, str] 
+
+
+# ---------------------------------------------------------------------------
+# Stockage interne (thread-safe)
+# ---------------------------------------------------------------------------
+
+_logs: List[LogEntry] = []
 _lock = threading.Lock()
 
+# Décalage introduit par with_try_clause dans runner.py ("try:\n    ...\n")
+_WRAPPER_LINE_OFFSET: int = 2
 
-def platon_log(*args: Any, **kwargs: Any) -> None:
+
+# ---------------------------------------------------------------------------
+# Helpers privés
+# ---------------------------------------------------------------------------
+
+def _coerce_log_type(log_type: Union[str, LogType]) -> LogType:
     """
-    Log un message vers la console Platon.
+    Accepte indifféremment une string ou un LogType.
+    Gère les alias courants (ex. "warning" → LogType.WARNING).
+    Lève ValueError si la valeur est inconnue.
+    """
+    if isinstance(log_type, LogType):
+        return log_type
 
-    Cette fonction est similaire à print() mais les messages sont
-    collectés et renvoyés à la plateforme Platon.
+    _ALIASES: Dict[str, str] = {"warning": "warn"}
+
+    normalized = _ALIASES.get(log_type.lower(), log_type.lower())
+    try:
+        return LogType(normalized)
+    except ValueError:
+        valid = ", ".join(f'"{t.value}"' for t in LogType)
+        raise ValueError(f"log_type invalide : '{log_type}'. Valeurs acceptées : {valid}")
+
+
+def _make_entry(log_type: LogType, message: str) -> LogEntry:
+    """Construit un dictionnaire de log normalisé."""
+    return {"type": log_type.value, "message": message}
+
+
+def _resolve_script_line(exception: Exception) -> str:
+    """
+    Extrait le numéro de ligne dans le script utilisateur à partir
+    de l'exception, en tenant compte du décalage du wrapper.
+
+    Returns:
+        str: Chaîne de la forme " (line N)" ou "" si non déterminable.
+    """
+    if isinstance(exception, SyntaxError):
+        if exception.lineno is not None:
+            return f" (line {exception.lineno - _WRAPPER_LINE_OFFSET})"
+        return ""
+
+    tb = exception.__traceback__
+    if tb is None:
+        return ""
+
+    frames = traceback.extract_tb(tb)
+
+    script_frames = [f for f in frames if f.filename == "<string>"]
+    if script_frames:
+        return f" (line {script_frames[-1].lineno - _WRAPPER_LINE_OFFSET})"
+
+    if frames:
+        return f" (line {frames[-1].lineno})"
+
+    return ""
+
+
+# ---------------------------------------------------------------------------
+# API publique
+# ---------------------------------------------------------------------------
+
+def platon_log(*args: Any, log_type: Union[str, LogType] = LogType.INFO) -> None:
+    """
+    Enregistre un message dans la console Platon.
+
+    Similaire à print(), mais les messages sont collectés et renvoyés
+    à la plateforme Platon sous forme de dictionnaires typés.
 
     Args:
-        *args: Arguments à logger (convertis en string et joints par des espaces)
-        **kwargs: Arguments nommés (actuellement ignorés, réservés pour usage futur)
+        *args:      Arguments à logger (convertis en str et joints par des espaces).
+        log_type:   Type du message. Accepte une valeur LogType ou une string
+                    équivalente ("info", "warning", "error", "debug").
+                    Défaut : LogType.INFO.
 
     Examples:
         >>> platon_log("Hello World")
         >>> platon_log("x =", 42)
-        >>> platon_log("Liste:", [1, 2, 3])
+        >>> platon_log("Attention !", log_type=LogType.WARNING)
+        >>> platon_log("Attention !", log_type="warning")   # équivalent
+        >>> platon_log("Erreur custom", log_type=LogType.ERROR)
+        >>> platon_log("Erreur custom", log_type="error")   # équivalent
     """
     message = " ".join(map(str, args))
+    entry = _make_entry(_coerce_log_type(log_type), message)
     with _lock:
-        _logs.append(message)
-
+        _logs.append(entry)
 
 
 def platon_log_exception(exception: Exception) -> None:
     """
-    Loggue une exception vers la console Platon.
+    Enregistre une exception dans la console Platon (type ERROR).
 
-    L'exception est convertie en message lisible et stockée
-    sans stacktrace brute.
+    L'exception est convertie en message lisible avec horodatage et
+    numéro de ligne dans le script utilisateur, sans stacktrace brute.
 
     Args:
         exception (Exception): L'exception à logger.
+
+    Examples:
+        >>> try:
+        ...     1 / 0
+        ... except Exception as e:
+        ...     platon_log_exception(e)
     """
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-
-    # The script is wrapped with 2 extra lines by with_try_clause ("try:\n    ...\n") (runner.py),
-    # so every line number from <string> must be offset by -2.
-    _WRAPPER_OFFSET = 2
-
-    location = ""
-    if isinstance(exception, SyntaxError):
-        if exception.lineno is not None:
-            location = f" (ligne {exception.lineno - _WRAPPER_OFFSET})"
-    else:
-        tb = exception.__traceback__
-        if tb is not None:
-            frames = traceback.extract_tb(tb)
-            script_frames = [f for f in frames if f.filename == "<string>"]
-            if script_frames:
-                last = script_frames[-1]
-                location = f" (ligne {last.lineno - _WRAPPER_OFFSET})"
-            elif frames:
-                location = f" (ligne {frames[-1].lineno})"
-
-    message = f"[{timestamp}] {type(exception).__name__}{location}: {exception}"
+    location  = _resolve_script_line(exception)
+    message   = f"{type(exception).__name__}{location}: {exception}"
+    entry     = _make_entry(LogType.ERROR, message)
     with _lock:
-        _logs.append(message)
+        _logs.append(entry)
 
 
-def get_logs() -> List[str]:
+def get_logs() -> List[LogEntry]:
     """
-    Récupère tous les logs enregistrés.
+    Retourne une copie de tous les logs enregistrés.
 
     Returns:
-        List[str]: Liste des messages loggés dans l'ordre chronologique.
+        List[LogEntry]: Liste de dictionnaires {"type": str, "message": str}.
 
     Example:
         >>> platon_log("Message 1")
-        >>> platon_log("Message 2")
+        >>> platon_log("Attention", log_type=LogType.WARNING)
         >>> get_logs()
-        ['Message 1', 'Message 2']
+        [{"type": "info", "message": "Message 1"}, {"type": "warning", "message": "Attention"}]
     """
     with _lock:
-        return _logs.copy()
+        return list(_logs)
 
 
 def clear_logs() -> None:
     """
     Efface tous les logs enregistrés.
-
-    Utile pour réinitialiser l'état entre plusieurs exécutions
-    ou pour les tests.
 
     Example:
         >>> platon_log("Message")
@@ -124,11 +209,11 @@ def log_count() -> int:
     Retourne le nombre de logs enregistrés.
 
     Returns:
-        int: Nombre de messages dans le buffer de logs.
+        int: Nombre d'entrées dans le buffer de logs.
     """
     with _lock:
         return len(_logs)
 
 
-# Alias pour compatibilité et facilité d'utilisation
+# Alias pour compatibilité
 log = platon_log
