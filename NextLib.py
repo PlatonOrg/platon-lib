@@ -195,8 +195,8 @@ def isAllExercisesPlayed() -> bool:
     Returns:
         bool: True si tous les exercices ont été tentés, False sinon.
     """
-    for exercise in exercisesMeta.values():
-        if exercise["attempts"] == 0:
+    for ex_id, exercise in exercisesMeta.items():
+        if exercise["attempts"] == 0 and not hasError(ex_id):
             return False
     return True
 
@@ -266,7 +266,7 @@ def getRandomUnplayedExerciseId() -> Optional[str]:
     Returns:
         Optional[str]: L'ID de l'exercice choisi aléatoirement qui n'a pas été joué.
     """
-    unplayed_exercises = [ex_id for ex_id, meta in exercisesMeta.items() if meta["attempts"] == 0]
+    unplayed_exercises = [ex_id for ex_id, meta in exercisesMeta.items() if meta["attempts"] == 0 and not hasError(ex_id)]
     
     if not unplayed_exercises:
         return None
@@ -359,6 +359,17 @@ def isPlayed(exerciseId: str) -> bool:
     """
     return getExerciseAttempts(exerciseId) > 0
 
+def hasError(exerciseId: str) -> bool:
+    """
+    Verifie si un exercice contient une erreur.
+
+    Args:
+        exerciseId (str): L'ID de l'exercice à vérifier.
+    
+    Returns:
+        bool: True si l'exercice contient une erreur, False sinon.
+    """
+    return exercisesMeta[exerciseId].get("error", False)
 
 def playAnyFromGroup(groupNb: int) -> Optional[None]:
     """
@@ -377,13 +388,14 @@ def playAnyFromGroup(groupNb: int) -> Optional[None]:
     checkGroupNb(groupNb)
 
     exercises = exerciseGroups[str(groupNb)]["exercises"]
-    
-    for exercise in exercises:
-        if isPlayed(exercise["id"]):
-            return None 
+    valid_exercises = [ex for ex in exercises if not hasError(ex["id"])]
 
-    randomExerciseNb = getRandomGroupExerciseNb(groupNb)
-    playExercise(exercises[randomExerciseNb]["id"])
+    for exercise in valid_exercises:
+        if isPlayed(exercise["id"]):
+            return None
+
+    if valid_exercises:
+        playExercise(random.choice(valid_exercises)["id"])
 
 
 def playAllFromGroup(groupNb: int, randomOrder: bool = False) -> Optional[None]:
@@ -407,7 +419,7 @@ def playAllFromGroup(groupNb: int, randomOrder: bool = False) -> Optional[None]:
 
     exercises = exerciseGroups[str(groupNb)]["exercises"]
     
-    unplayed_exercises = [exercise for exercise in exercises if not isPlayed(exercise["id"])]
+    unplayed_exercises = [exercise for exercise in exercises if not isPlayed(exercise["id"]) and not hasError(exercise["id"])]
     
     if not unplayed_exercises:
         return None 
@@ -430,7 +442,7 @@ def playFirstUnplayedExercise() -> None:
     for groupNb in range(getGroupsCount()):
         exercises = exerciseGroups[str(groupNb)]["exercises"]
         for exercise in exercises:
-            if not isPlayed(exercise["id"]):
+            if not isPlayed(exercise["id"]) and not hasError(exercise["id"]):
                 playExercise(exercise["id"])
 
 
@@ -450,7 +462,7 @@ def playNextUnplayedExercise(loop: bool = False) -> None:
     for groupNb in range(getGroupsCount()):
         exercises = exerciseGroups[str(groupNb)]["exercises"]
         for exercise in exercises:
-            if found_current and not isPlayed(exercise["id"]):
+            if found_current and not isPlayed(exercise["id"]) and not hasError(exercise["id"]):
                 playExercise(exercise["id"])
             if exercise["id"] == current_id:
                 found_current = True
@@ -460,7 +472,7 @@ def playNextUnplayedExercise(loop: bool = False) -> None:
         for groupNb in range(getGroupsCount()):
             exercises = exerciseGroups[str(groupNb)]["exercises"]
             for exercise in exercises:
-                if not isPlayed(exercise["id"]):
+                if not isPlayed(exercise["id"]) and not hasError(exercise["id"]):
                     playExercise(exercise["id"])
 
 
@@ -499,7 +511,7 @@ def isAllExercisesFromGroupPlayed(groupNb: int = getPreviousGroupNumber()) -> bo
     checkGroupNb(groupNb)
     
     exercises = exerciseGroups[str(groupNb)]["exercises"]
-    return all(isPlayed(exercise["id"]) for exercise in exercises)
+    return all(isPlayed(exercise["id"]) or hasError(exercise["id"]) for exercise in exercises)
 
 
 def playIfUnplayed(exerciseId: str, params: Optional[dict] = None) -> None:
@@ -510,7 +522,7 @@ def playIfUnplayed(exerciseId: str, params: Optional[dict] = None) -> None:
         exerciseId (str): L'ID de l'exercice à jouer.
         params (Optional[dict]): Paramètres supplémentaires pour l'exercice. Default: None.
     """
-    if not isPlayed(exerciseId):
+    if not isPlayed(exerciseId) and not hasError(exerciseId):
         playExercise(exerciseId, params)
 
 
