@@ -476,6 +476,64 @@ def playNextUnplayedExercise(loop: bool = False) -> None:
                     playExercise(exercise["id"])
 
 
+def getGroupGradeRules(groupNb: int) -> Optional[dict]:
+    """
+    Récupère les informations sur les règles d'évaluation et de validation d'un groupe.
+
+    Args:
+        groupNb (int): Le numéro du groupe dont on souhaite récupérer les règles.
+
+    Raises:
+        InvalidGroupError: Si le numéro de groupe spécifié n'existe pas.
+
+    Returns:
+        Optional[dict]: Renvoie `None` si aucune règle n'est définie (type 'empty'). 
+        Sinon, renvoie un dictionnaire contenant les paramètres du barème :
+            - type (str) : 'mean' (moyenne) ou 'success' (succès individuel sur les derniers exercices).
+            - exercisesCount (int, optionnel) : Le nombre de derniers exercices pris en compte pour valider le groupe.
+            - targetScore (int, optionnel) : Le score cible à atteindre (entre 0 et 100).
+            - maxAttempts (int, optionnel) : Le nombre maximum de tentatives autorisées par exercice.
+    """
+    checkGroupNb(groupNb)
+    graderInformation = exerciseGroups[str(groupNb)]["grader"]
+    
+    return None if graderInformation["type"] == "empty" else graderInformation
+
+
+def isValidationModeRandom() -> bool: 
+    """
+    Pour le mode de navigation "validation", indique si le paramètre "Groupe Aléatoire" est activé.
+
+    Raises:
+        ValueError: Si le mode de navigation configuré pour l'activité n'est pas "validation".
+
+    Returns:
+        bool: True si le choix des groupes est aléatoire entre chaque exercice, 
+              False si les groupes doivent être validés dans l'ordre séquentiel.
+    """
+    if settings["navigation"]["mode"] != "validation": 
+        raise ValueError("L'activité n'est pas en mode 'validation'")
+        
+    return settings["navigation"]["random"]
+
+
+def getGroupName(groupNb: int) -> str:
+    """
+    Récupère le nom d'un groupe d'exercices à partir de son numéro.
+
+    Args:
+        groupNb (int): Le numéro du groupe dont on souhaite récupérer le nom.
+
+    Raises:
+        InvalidGroupError: Si le numéro de groupe spécifié n'existe pas.
+
+    Returns:
+        str: Le nom complet du groupe tel qu'il est défini dans l'activité.
+    """
+    checkGroupNb(groupNb)
+    return exerciseGroups[str(groupNb)]["name"]
+
+
 def getPreviousGroupNumber() -> Optional[int]:
     """
     Récupère le numéro du groupe du dernier exercice lancé, s'il existe.
@@ -485,15 +543,7 @@ def getPreviousGroupNumber() -> Optional[int]:
                        n'est en cours.
     """
     previous = navigation.get("current")
-    if not previous:
-        return None
-
-    for groupNb, group in exerciseGroups.items():
-        if any(ex["id"] == previous["id"] for ex in group["exercises"]):
-            return int(groupNb)
-
-    return None
-
+    return previous["groupId"]
 
 def isAllExercisesFromGroupPlayed(groupNb: int = getPreviousGroupNumber()) -> bool:
     """
