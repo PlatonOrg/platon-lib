@@ -543,6 +543,8 @@ def getPreviousGroupNumber() -> Optional[int]:
                        n'est en cours.
     """
     previous = navigation.get("current")
+    if not previous:
+        return None
     return previous["groupId"]
 
 def isAllExercisesFromGroupPlayed(groupNb: int = getPreviousGroupNumber()) -> bool:
